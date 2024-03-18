@@ -1,12 +1,17 @@
 import { inject, injectable } from "tsyringe";
 import { DatabaseServer } from "@spt-aki/servers/DatabaseServer";
 import { ILogger } from "@spt-aki/models/spt/utils/ILogger";
+import { ItemParentSetting, ItemPropSettings, ParentSetting, Settings } from "./types";
 
 @injectable()
 export class TrueStack {
-    private config: any = require("../config/stackConfig.json");
+    private barterConfig: Settings = require("../config/barter.json");
+    private clothingConfig: Settings = require("../config/clothing.json");
+    private medicalConfig: Settings = require("../config/medicals.json");
+    private partsnmodsConfig: ParentSetting = require("../config/partsnmods.json");
+    private provisionsConfig: Settings = require("../config/provisions.json");
+
     private items: any;
-    private mult: number;
 
     private readonly FEATURE_NAME: string = "[True Stack]";
     private readonly MSG_CHANGING: string = "Changing";
@@ -16,162 +21,67 @@ export class TrueStack {
         @inject("DatabaseServer") private db: DatabaseServer,
         @inject("WinstonLogger") private logger: ILogger
     ) {
-        if (this.config.Active === false)
-            return;
-        
         this.items = db.getTables().templates.items;
-        this.mult = Math.round(this.config.StackMult);
 
         this.Log(this.MSG_CHANGING);
-        this.Clothing();
-        this.Food();
-        this.Medicals();
-        this.Barter();
-        this.PartsNMods();
+        this.ChangeSettings(this.clothingConfig);
+        this.ChangeSettings(this.provisionsConfig);
+        this.ChangeSettings(this.medicalConfig, true);
+        this.ChangeSettings(this.barterConfig);
+        this.ChangeParentSettings(this.partsnmodsConfig);
         this.Log(this.MSG_DONE);
     }
 
-    private Clothing(): void {
-        const data: any = this.config.Clothing;
-        this.ChangeByList(data);
-    }
-
-    private Food(): void {
-        const data: any = this.config.Food;
-        this.ChangeByList(data);
-    }
-
-    private Medicals(): void {
-        const data: any = this.config.Medicals;
-        this.ChangeByList(data, true);
-    }
-
-    private Barter(): void {
-        const data: any = this.config.Barter;
-        this.ChangeByList(data);
-    }
-
-    private PartsNMods(): void {
-        this.Barrel();
-        this.ChargingHandle();
-        this.Foregrip();
-        this.Muzzle();
-        this.Auxiliary();
-        this.TacticalDevice();
-        this.GasBlock();
-        this.Mount();
-        this.Sight();
-    }
-
-    private ChangeByList(data: any, isMedical: boolean = false): void {
-        if (this.IsDataEnable(data) === false)
+    private ChangeSettings(data: Settings, isMedical: boolean = false): void {
+        if (!this.IsActive(data)) 
             return;
-        
-        for (let infoIdx in data.List) {
-            const info: any = data.List[infoIdx];
 
-            for (let itemIdx in this.items) {
-                const item: any = this.items[itemIdx];
-    
-                if (item._props === undefined)
-                    continue;
-                if (item._id != info._id)
-                    continue;
-                if (item._props.StackMaxSize === undefined)
-                    continue;
-                    
-                if (isMedical === true) {
-                    if (item._props.MaxHpResource === undefined)
-                        continue;
-                    if (item._props.MaxHpResource > 0)
-                        continue;
-                }
-
-                item._props.StackMaxSize = info._props.StackMaxSize * this.mult;
-                item._props.StackMinRandom = 1;
-                break;
-            }
+        for (let itemInfoIndex in data.List) {
+            const itemInfo: ItemPropSettings = data.List[itemInfoIndex];
+            this.ForEachItem(itemInfo._id, false, isMedical, itemInfo._props.StackMaxSize, data.StackMult);
         }
     }
 
-    private Barrel(): void {
-        const data: any = this.config.PartsNMods.Barrel;
-        this.ChangeByParent(data);
-    }
-
-    private ChargingHandle(): void {
-        const data: any = this.config.PartsNMods.ChargingHandle;
-        this.ChangeByParent(data);
-    }
-
-    private Foregrip(): void {
-        const data: any = this.config.PartsNMods.Foregrip;
-        this.ChangeByParent(data);
-    }
-
-    private Muzzle(): void {
-        const data: any = this.config.PartsNMods.Muzzle;
-        this.ChangeByParent(data);
-    }
-
-    private Auxiliary(): void {
-        const data: any = this.config.PartsNMods.Auxiliary;
-        this.ChangeByParent(data);
-    }
-
-    private TacticalDevice(): void {
-        const data: any = this.config.PartsNMods.TacticalDevice;
-        this.ChangeByParent(data);
-    }
-
-    private GasBlock(): void {
-        const data: any = this.config.PartsNMods.GasBlock;
-        this.ChangeByParent(data);
-    }
-
-    private Mount(): void {
-        const data: any = this.config.PartsNMods.Mount;
-        this.ChangeByParent(data);
-    }
-
-    private Sight(): void {
-        const data: any = this.config.PartsNMods.Sight;
-        this.ChangeByParent(data);
-    }
-
-    private ChangeByParent(data: any) {
-        if (this.IsDataEnable(data) === false)
+    private ChangeParentSettings(data: ParentSetting): void {
+        if (!this.IsActive(data))
             return;
-        if (data._parent === undefined)
-            return;
-        if (data._parent.List === undefined)
-            return;
-        
-        const stack: number = data._parent.StackMaxSize;
-        for (let infoIdx in data._parent.List) {
-            const info: any = data._parent.List[infoIdx];
 
-            for (let itemIdx in this.items) {
-                const item: any = this.items[itemIdx];
-    
-                if (item._props === undefined)
-                    continue;
-                if (item._parent != info._id)
-                    continue;
-                if (item._props.StackMaxSize === undefined)
-                    continue;
-
-                item._props.StackMaxSize = stack * this.mult;
-                item._props.StackMinRandom = 1;
-                break;
-            }
+        for (let ParentInfoIndex in data.ParentList) {
+            const parentInfo: ItemParentSetting = data.ParentList[ParentInfoIndex];
+            this.ForEachItem(parentInfo._id, true, false, parentInfo.StackMaxSize, data.StackMult);
         }
     }
 
-    private IsDataEnable(data: any): boolean {
-        if (data === undefined)
+    private ForEachItem(id: string, isParent: boolean = false, isMedical: boolean = false, StackMaxSize: number, StackMult: number): void {
+        for (let itemDBIndex in this.items) {
+            const item: any = this.items[itemDBIndex];
+
+            // validations
+            if (item._props === undefined)
+                continue;
+            if (isParent === true && item._parent != id) {
+                continue;
+            } else if (item._id != id)
+                continue;
+            if (item._props.StackMaxSize === undefined)
+                continue;
+            if (isMedical === true) {
+                if (item._props.MaxHpResource === undefined)
+                    continue;
+                if (item._props.MaxHpResource > 0)
+                    continue;
+            }
+
+            item._props.StackMaxSize = StackMaxSize * StackMult;
+            item._props.StackMinRandom = 1;
+            break;
+        }
+    }
+
+    private IsActive(data: Settings) {
+        if (data === undefined) 
             return false;
-        if (data.Enable === false)
+        if (data.Active === false) 
             return false;
 
         return true;
