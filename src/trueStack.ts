@@ -1,7 +1,10 @@
+/* eslint-disable @typescript-eslint/naming-convention */
+/* eslint-disable @typescript-eslint/brace-style */
 import { inject, injectable } from "tsyringe";
 import { DatabaseServer } from "@spt-aki/servers/DatabaseServer";
 import { ILogger } from "@spt-aki/models/spt/utils/ILogger";
 import { ItemParentSetting, ItemPropSettings, ParentSetting, Settings } from "./types";
+import { LogTextColor } from "@spt-aki/models/spt/logging/LogTextColor";
 
 @injectable()
 export class TrueStack {
@@ -10,6 +13,7 @@ export class TrueStack {
     private medicalConfig: Settings = require("../config/medicals.json");
     private partsnmodsConfig: ParentSetting = require("../config/partsnmods.json");
     private provisionsConfig: Settings = require("../config/provisions.json");
+    private keycardsConfig: ParentSetting = require("../config/keycards.json");
 
     private items: any;
 
@@ -24,39 +28,41 @@ export class TrueStack {
         this.items = db.getTables().templates.items;
 
         this.Log(this.MSG_CHANGING);
-        this.ChangeSettings(this.clothingConfig);
-        this.ChangeSettings(this.provisionsConfig);
-        this.ChangeSettings(this.medicalConfig, true);
-        this.ChangeSettings(this.barterConfig);
-        this.ChangeParentSettings(this.partsnmodsConfig);
+        this.changeSettings(this.clothingConfig);
+        this.changeSettings(this.provisionsConfig);
+        this.changeSettings(this.medicalConfig, true);
+        this.changeSettings(this.barterConfig);
+        this.changeParentSettings(this.partsnmodsConfig);
+
+        this.changeParentSettings(this.keycardsConfig);
         this.Log(this.MSG_DONE);
     }
 
-    private ChangeSettings(data: Settings, isMedical: boolean = false): void {
-        if (!this.IsActive(data)) 
+    private changeSettings(data: Settings, isMedical: boolean = false): void {
+        if (!this.isActive(data)) 
             return;
 
-        for (let itemInfoIndex in data.List) {
+        for (const itemInfoIndex in data.List) {
             const itemInfo: ItemPropSettings = data.List[itemInfoIndex];
-            this.ForEachItem(itemInfo._id, false, isMedical, itemInfo._props.StackMaxSize, data.StackMult);
+            this.forEachItem(itemInfo._id, false, isMedical, itemInfo._props.StackMaxSize, data.StackMult);
         }
     }
 
-    private ChangeParentSettings(data: ParentSetting): void {
-        if (!this.IsActive(data))
+    private changeParentSettings(data: ParentSetting): void {
+        if (!this.isActive(data))
             return;
 
-        for (let ParentInfoIndex in data.ParentList) {
+        for (const ParentInfoIndex in data.ParentList) {
             const parentInfo: ItemParentSetting = data.ParentList[ParentInfoIndex];
-            this.ForEachItem(parentInfo._id, true, false, parentInfo.StackMaxSize, data.StackMult);
+            this.forEachItem(parentInfo._id, true, false, parentInfo.StackMaxSize, data.StackMult);
         }
     }
 
-    private ForEachItem(id: string, isParent: boolean = false, isMedical: boolean = false, StackMaxSize: number, StackMult: number): void {
-        for (let itemDBIndex in this.items) {
+    private forEachItem(id: string, isParent: boolean = false, isMedical: boolean = false, stackMaxSize: number, stackMult: number): void {
+        for (const itemDBIndex in this.items) {
             const item: any = this.items[itemDBIndex];
 
-            // validations
+            // validations to prevent errors
             if (item._props === undefined)
                 continue;
             if (isParent === true && item._parent != id) {
@@ -72,13 +78,13 @@ export class TrueStack {
                     continue;
             }
 
-            item._props.StackMaxSize = StackMaxSize * StackMult;
+            item._props.StackMaxSize = stackMaxSize * stackMult;
             item._props.StackMinRandom = 1;
             break;
         }
     }
 
-    private IsActive(data: Settings) {
+    private isActive(data: Settings) {
         if (data === undefined) 
             return false;
         if (data.Active === false) 
@@ -88,6 +94,6 @@ export class TrueStack {
     }
 
     private Log(message: string) {
-        this.logger.logWithColor("[True Items]" + this.FEATURE_NAME + " " + message, "cyan");
+        this.logger.logWithColor("[True Items]" + this.FEATURE_NAME + " " + message, LogTextColor.CYAN);
     }
 }
