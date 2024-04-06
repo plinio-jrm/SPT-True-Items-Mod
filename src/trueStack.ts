@@ -14,6 +14,7 @@ export class TrueStack {
     private partsnmodsConfig: ParentSetting = require("../config/partsnmods.json");
     private provisionsConfig: Settings = require("../config/provisions.json");
     private keycardsConfig: ParentSetting = require("../config/keycards.json");
+    private othersConfig: Settings = require("../config/others.json");
 
     private items: any;
 
@@ -33,8 +34,8 @@ export class TrueStack {
         this.changeSettings(this.medicalConfig, true);
         this.changeSettings(this.barterConfig);
         this.changeParentSettings(this.partsnmodsConfig);
-
         this.changeParentSettings(this.keycardsConfig);
+        this.changeSettings(this.othersConfig);
         this.Log(this.MSG_DONE);
     }
 

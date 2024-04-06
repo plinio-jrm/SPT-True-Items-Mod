@@ -4,7 +4,7 @@
     "main": "src/mod.js",
     "license": "MIT",
     "author": "PlinioJRM",
-    "akiVersion": "3.7.x",
+    "akiVersion": "3.8.0",
     "loadBefore": [],
 	"loadAfter": [],
 	"incompatibilities": [],
